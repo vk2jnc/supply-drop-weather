@@ -42,7 +42,7 @@ except Exception:  # pragma: no cover - import safety
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import sdb_data
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 PUB_ID = "pub"
 STATE_FILE = os.environ.get(
     "SDB_WEATHER_STATE",
@@ -82,15 +82,24 @@ def log(msg: str) -> None:
     sys.stderr.flush()
 
 # ── state (dedup across restarts) ────────────────────────────────────────────
+# Bump when the dedup key format changes — old keys become meaningless and
+# the state is discarded on first load (one controlled re-seed, then quiet).
+_STATE_VERSION = 3
+
 def load_state() -> dict:
     try:
         with open(STATE_FILE) as f:
-            return json.load(f)
+            st = json.load(f)
+        if st.get("v") != _STATE_VERSION:
+            log("dedup state format changed; resetting posted set")
+            return {"v": _STATE_VERSION, "posted": {}}
+        return st
     except Exception:
-        return {"posted": {}}
+        return {"v": _STATE_VERSION, "posted": {}}
 
 def save_state(st: dict) -> None:
     try:
+        st["v"] = _STATE_VERSION
         with open(STATE_FILE, "w") as f:
             json.dump(st, f)
     except Exception as e:
@@ -116,15 +125,38 @@ def passes_filter(item: dict) -> bool:
             return False
     return True
 
+def _norm_title(t: str) -> str:
+    """Canonical form of a headline for dedup: trim, collapse whitespace,
+    drop a trailing 'Advice — ' / 'Advice - ' prefix and normalise dashes.
+    ABC re-renders cards and re-mints the item id; the address in the
+    headline is the stable identity."""
+    import re
+    s = (t or "").strip()
+    s = re.sub(r"^[Aa]dvice\s*[-–—]\s*", "", s)   # "Advice — Grass Fire: X" -> "Grass Fire: X"
+    s = re.sub(r"\s+", " ", s)
+    return s.lower().replace("–", "-").replace("—", "-")
+
 def dedup_key(item: dict) -> str:
-    # Stable across ABC re-renders. Deliberately excludes item["updated"] —
-    # ABC refreshes that timestamp whenever it re-renders the feed, which
-    # made the old key (with |updated) change every poll and re-post the
-    # whole feed every 5 min. A genuinely re-issued warning keeps the same
-    # id + title, so it stays deduped (that's what we want).
-    src = item.get("source", "")[:20]
-    ident = item.get("id") or item.get("title")
-    return f"{src}|{ident}"
+    # Content-based, stable across ABC re-renders.
+    #
+    # History: the first key was id|updated — ABC re-stamps `updated` on
+    # every re-render, so the whole feed looked "new" each poll. The
+    # second key was source|id — but ABC *also* re-mints the id on some
+    # re-renders (seen live: CAMPBELLS CREEK WINDEYER posted 6 times in
+    # 25 min under 6 different ids), so a handful of fires leaked
+    # duplicates through. The headline (address) is stable across both
+    # kinds of re-render, so it anchors the key; the geometry signature
+    # separates same-headline cards (e.g. "Advice - Riverine Flood -
+    # Stay Informed" has 8 cards, one per river catchment).
+    src = (item.get("source") or "")[:20]
+    if item.get("source") == "Bureau of Meteorology":
+        # BoM warning id can change on re-issue; title + area is the stable
+        # identity, and a genuine re-issue SHOULD post again — so include
+        # the issue timestamp (BoM item["updated"]) for BoM only.
+        ident = _norm_title(item.get("title", ""))
+        return f"{src}|bom|{ident}|{item.get('updated', '')}"
+    title = _norm_title(item.get("title", ""))
+    return f"{src}|{title}|{item.get('geo_sig') or '-'}"
 
 def render(item: dict) -> str:
     lvl = (item.get("level_text") or item.get("level") or "").strip()
