@@ -10,7 +10,7 @@ Optional env overrides:
     SDB_EMERGENCY_ROOM  name of the emergency room   (default: Emergency)
     SDB_FIRE_ROOM       name of the fire room        (default: Fire Danger)
     SDB_STATES        ABC states, comma-sep        (default: nsw)
-    SDB_BOM_GEO       BoM geohash prefixes         (default: r1r0  = Wagga)
+    SDB_BOM_GEO       BoM geohash prefixes         (default: r38zgrx  = Wagga)
     SDB_INTERVAL      poll interval seconds        (default: 300)
 
 Steps (idempotent where possible):
@@ -44,7 +44,7 @@ PUB_USER = os.environ.get("SDB_PUB_USER", "weather")
 WEATHER_ROOM = os.environ.get("SDB_EMERGENCY_ROOM", os.environ.get("SDB_WEATHER_ROOM", "Emergency"))
 FIRE_ROOM = os.environ.get("SDB_FIRE_ROOM", "Fire Danger")
 STATES = os.environ.get("SDB_STATES", "nsw")
-BOM_GEO = os.environ.get("SDB_BOM_GEO", "r1r0")
+BOM_GEO = os.environ.get("SDB_BOM_GEO", "r38zgrx")
 INTERVAL = os.environ.get("SDB_INTERVAL", "300")
 
 

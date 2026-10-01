@@ -58,8 +58,8 @@ _ap.add_argument("--fire-room", type=int, default=None,
 _ap.add_argument("--states", default="nsw",
                  help="Comma-sep ABC states, e.g. nsw,vic (default: nsw)")
 _ap.add_argument("--geohashes", default="", help="Comma-sep ABC geohash prefixes, e.g. r1r0,r38")
-_ap.add_argument("--bom-geohashes", default="r1r0",
-                 help="Comma-sep BoM geohash prefixes for weather warnings (default: r1r0 = Wagga)")
+_ap.add_argument("--bom-geohashes", default="r38zgrx",
+                 help="Comma-sep BoM location geohashes for weather warnings (default: r38zgrx = Wagga Wagga)")
 _ap.add_argument("--interval", type=int, default=300, help="Poll interval seconds")
 _ap.add_argument("--severe-only", action="store_true",
                  help="Only post severe/extreme (BoM) & high (ABC) items")

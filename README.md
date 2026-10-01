@@ -24,8 +24,10 @@ changes.
    file, and posts each **new** incident as the publisher:
    - fire / fire-danger types -> `Fire Danger` room
    - everything else -> `Emergency` room
-4. Dedup key = `(source, id, issue_time)`, so a warning posts exactly once;
-   a failed post retries next cycle; cleared items are pruned from state.
+4. Dedup key is **content-based** — normalised headline + a signature of
+   the card's geometry (ABC cards), so the same fire keeps the same key even
+   though ABC re-renders cards and re-mints their `id`s. A warning posts
+   exactly once; a failed post retries next cycle; cleared items are pruned.
 
 ## Install (one command, run as root on the BBS host)
 
@@ -48,7 +50,7 @@ restarts and verifies from the journal that the plugin logged in.
 | `SDB_EMERGENCY_ROOM` | `Emergency` | main room name |
 | `SDB_FIRE_ROOM` | `Fire Danger` | fire room name (set to the same name for a single room) |
 | `SDB_STATES` | `nsw` | ABC states, comma list (nsw,vic,act,qld,sa,wa,tas,nt) |
-| `SDB_BOM_GEO` | `r1r0` | BoM geohashes, comma list (4-char = region) |
+| `SDB_BOM_GEO` | `r38zgrx` | BoM location geohash(es), comma list — must be a valid BoM geohash (Wagga = `r38zgrx`) |
 | `SDB_SEVERE_ONLY` | `0` | `1` = only moderate/major/extreme ABC levels |
 | `SDB_INTERVAL` | `300` | poll seconds (don't go much under 120) |
 | `SDB_FIRE_ROOM_ID`/`SDB_ROOM_ID` | auto | pin room IDs instead of auto-detect |
