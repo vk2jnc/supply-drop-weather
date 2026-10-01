@@ -42,7 +42,7 @@ except Exception:  # pragma: no cover - import safety
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import sdb_data
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 PUB_ID = "pub"
 STATE_FILE = os.environ.get(
     "SDB_WEATHER_STATE",
@@ -84,7 +84,7 @@ def log(msg: str) -> None:
 # ── state (dedup across restarts) ────────────────────────────────────────────
 # Bump when the dedup key format changes — old keys become meaningless and
 # the state is discarded on first load (one controlled re-seed, then quiet).
-_STATE_VERSION = 3
+_STATE_VERSION = 4   # v3 (v0.3.1) = source|id|updated removed; v4 (v0.3.2) = geo 2dp
 
 def load_state() -> dict:
     try:

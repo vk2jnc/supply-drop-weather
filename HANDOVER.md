@@ -4,6 +4,10 @@
 **Host:** controlroom (BBS host), `jamie` user / `supply-drop` service user
 **Date:** 2026-10-01 (AEST)
 **Version at handover:** v0.3.2 (GitHub tag `v0.3.2`)
+**Live at handover:** **v0.3.0** (deployed 20:09 AEST) — only the
+`updated`-stamp dedup fix. v0.3.1–v0.3.2 (content-key, state filter, BoM
+geohash, geo-2dp) are built, verified, and pushed but NOT yet deployed
+(see §8 item 0 + the Deploy section)
 **Repo:** https://github.com/vk2jnc/supply-drop-weather
 
 ---
@@ -92,32 +96,34 @@ Key lessons, in the order they bit:
 
 1. **v0.2.0 bug — `updated` in the key.** ABC re-stamps every card's
    `updated` on re-render → same fires looked "new" every poll → ~60
-   duplicates per 5 min. Key became `(source, id)`.
-2. **v0.3.1 fix — content key.** ABC *also* re-mints the `id` of a card on
+   duplicates per 5 min. **v0.3.0** (deployed 20:09 AEST, LIVE at
+   handover) changed the key to `(source, id)`. This is what stopped the
+   57–176/poll storm.
+2. **v0.3.1 — content key.** ABC *also* re-mints the `id` of a card on
    re-render (CAMPBELLS CREEK posted 6× in 25 min). Key became
-   `(source, normalized headline, geometry signature)`.
-3. **v0.3.2 fix — geometry precision.** ABC's per-render coordinate jitter
-   (3rd decimal) still flipped the key on some polls. Point signatures now
-   round to 2 dp (~1 km) — coarse enough to ignore jitter, fine enough
-   that two distinct fires stay distinct.
+   `(source, normalized headline, geometry signature)`. Also added the
+   `state` filter (QLD/VIC/NT leak) and the BoM geohash fix. **NOT yet
+   deployed at handover.**
+3. **v0.3.2 — geometry precision.** ABC's per-render coordinate jitter
+   (3rd decimal) still flipped the key on some polls. Point signatures
+   now round to 2 dp (~1 km). **NOT yet deployed at handover.**
 4. **BoM re-issue policy:** BoM keys include the issue timestamp, so a
    *genuinely updated* warning (e.g. escalated to Severe) posts again.
 
-`dedup_key` (current):
+`dedup_key` (v0.3.2, current in repo):
 ```python
 (src=source[:20]) | (bom ? issue-time : geo_sig(geometry)) | normalized_title
 ```
 
-`geo_sig`: single point → `lon:lat` at 2 dp; polygon → 2 dp bbox.
-
 **State file** `weather-plugin-state.json`:
 ```json
-{"v": 3, "posted": {"<key>": "<first-seen RFC3339>"}}
+{"v": 4, "posted": {"<dedup-key>": {"title": "...", "room": 8, "t": 1790800000.0}}}
 ```
-`_STATE_VERSION` bumps on every key-format change; a version mismatch
-discards the old state and re-seeds (one clean post of all active items,
-then quiet). This is what happened at 23:00 AEST today:
-`state v2 reset: 55 items now considered known`.
+`_STATE_VERSION` was introduced in v0.3.1 (=3) and bumped to **4** in
+v0.3.2. The live v0.3.0 state file has **no `v` field**, so the first
+deploy of v0.3.1+ detects the mismatch, discards it, and re-seeds once
+(one clean post of all currently-active items, then `0 new posted`).
+That re-seed is the expected one-time cost of deploying the fix.
 
 ---
 
@@ -186,15 +192,23 @@ the `args` array in `weather.toml` and `systemctl restart supply-drop-bbs`.
 
 ### Deploy a new version
 ```sh
+# 1. copy the two code files
 sudo cp ~/workspace/supply-drop-weather/sdb_data.py /opt/sdb-weather/
 sudo cp ~/workspace/supply-drop-weather/supply-drop-weather.py /opt/sdb-weather/
-# (bump the version string in the .py if you want `plugin list` to show it)
+# 2. FIX the BoM geohash in the live toml (r1r0 is invalid → 400 every poll)
+sudo sed -i 's/"r1r0"/"r38zgrx"/' /etc/supply-drop-bbs/plugins.d/weather.toml
+# 3. restart + watch
 sudo systemctl restart supply-drop-bbs
 journalctl -u supply-drop-bbs -f | grep weather
 ```
-If the dedup key format changed: bump `_STATE_VERSION` in the .py first —
-the old state is then discarded and re-seeded once (expected: one clean
-post of all currently-active items, then `0 new posted`).
+Steps 1+2 are both required: the code's own default is also `r38zgrx`, but
+the live toml explicitly overrides it to `r1r0`, so without step 2 the BoM
+leg keeps 400-ing.
+
+If the dedup key format changed (it has — v0.3.0→v0.3.2): the new code
+bumps `_STATE_VERSION` (now 4). The first poll detects the live state
+file is a different version, discards it, and re-seeds once — expected:
+one clean post of all currently-active items (~55), then `0 new posted`.
 
 ### Verify it's working
 ```sh
@@ -250,12 +264,14 @@ sudo supply-drop-bbs user delete weather
 
 ## 8. Known limitations / open items
 
-0. **v0.3.2 not yet deployed at handover** — the live system is running
-   v0.3.1 (dedup state v2, ~0–5 new/poll residual churn from ABC
-   coordinate jitter). v0.3.2 (geo 2 dp, state v3) is built, verified
-   stable (0 new / 0 gone on a live 2-poll test) and pushed, but the
-   deploy command in §7 hasn't been run yet. Expected after deploy:
-   one `state v3 reset` re-seed, then `0 new posted` every poll.
+0. **Live is v0.3.0, not the latest.** At handover the BBS is running
+   v0.3.0 (only the `updated`-stamp dedup fix — that's what stopped the
+   57–176/poll storm). It does NOT yet have: the content-key (ABC
+   re-minted-id → 0–5 "new"/poll churn), the state filter (QLD/VIC/NT
+   leak), or the BoM geohash fix (`BoM fetch failed: 400` still fires
+   every poll; live toml still says `r1r0`). Deploy v0.3.2 (below) to
+   pick all of these up. Expected on deploy: one state re-seed (≈55
+   posts), then `0 new posted`, and the BoM 400 gone.
 1. **Web admin UTC display** — messages show `02:53` instead of `12:53`
    AEST (upstream `MessagesPage.vue` does `timestamp.slice(0,16)` instead
    of `fmtLocal()`). Data is correct; display bug only. Upstream PR
@@ -294,11 +310,16 @@ sudo supply-drop-bbs user delete weather
 | ~17:00 | v0.2.0: dedup key with `updated` → duplicate storm discovered in journal |
 | ~18:00 | Published GitHub repo `vk2jnc/supply-drop-weather` (main, Apache-2.0) |
 | ~18:30 | Installer written + PTY password helper; `user create` race (bug #9) fixed |
-| ~19:00 | Live install: `weather` account (sysop), rooms Emergency(6) + Fire Danger(7), plugin deployed, first post 12:53 AEST (55 warnings) |
+| ~19:00 | Live install: `weather` account (sysop), rooms Emergency(8) + Fire Danger(9), plugin v0.3.0 deployed, first post 12:53 AEST (55 warnings) |
 | 13:18–21:00 | Duplicate storm observed (bugs #3 #4 #5 #6) — journal forensics |
-| ~21:45 | v0.3.1: content key + state filter + BoM geohash fix; deployed; state v2 re-seed |
-| ~23:00 | v0.3.2: geo 2 dp; deployed; state v3 re-seed; polls settling to `0 new posted` |
+| ~20:09 | **v0.3.0 deployed** (`updated`-stamp fix) — 57–176/poll storm stops; residual 0–5/poll churn + BoM 400 remain |
+| ~21:45 | v0.3.1 written (content key + state filter + BoM geohash) — built + verified, **not deployed** |
+| ~23:00 | v0.3.2 written (geo 2 dp, state v4) — built + verified stable (0 new/0 gone), **not deployed** |
 | 23:15 | Cleanup script + this handover written |
+
+**Handover state:** live = v0.3.0. To go to v0.3.2: run the Deploy steps
+in §7 (copy 2 files + fix toml geohash + restart), then the room cleanup
+in §7.
 
 ---
 
