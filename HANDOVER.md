@@ -3,9 +3,9 @@
 **Author:** Jamos (built with Hermes Agent)
 **Host:** controlroom (BBS host), `jamie` user / `supply-drop` service user
 **Date:** 2026-10-01 (AEST)
-**Version at handover:** v0.3.2 (GitHub tag `v0.3.2`)
+**Version at handover:** v0.3.3 (GitHub tag `v0.3.3`)
 **Live at handover:** **v0.3.0** (deployed 20:09 AEST) — only the
-`updated`-stamp dedup fix. v0.3.1–v0.3.2 (content-key, state filter, BoM
+`updated`-stamp dedup fix. v0.3.1–v0.3.3 (content-key, state filter, BoM
 geohash, geo-2dp) are built, verified, and pushed but NOT yet deployed
 (see §8 item 0 + the Deploy section)
 **Repo:** https://github.com/vk2jnc/supply-drop-weather
@@ -50,7 +50,7 @@ BBS process (supply-drop-bbs, systemd user service)
             │    → `C #Fire Danger` / `C #Emergency`
             │    → compose: <ctrl-E> <title> ... <ctrl-C>
             ├─ state: /var/lib/supply-drop-bbs/weather-plugin-state.json
-            └─ dedup: content-based key, versioned (v3)
+            └─ dedup: content-based key, versioned (v4)
 ```
 
 **Why process-transport** (not a standalone script or telnet client):
