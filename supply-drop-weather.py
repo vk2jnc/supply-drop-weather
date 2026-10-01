@@ -42,7 +42,7 @@ except Exception:  # pragma: no cover - import safety
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import sdb_data
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 PUB_ID = "pub"
 STATE_FILE = os.environ.get(
     "SDB_WEATHER_STATE",

@@ -130,7 +130,11 @@ def geo_sig(geo: dict | None) -> str:
     if not pts:
         return ""
     if len(pts) == 1:
-        return f"{pts[0][0]:.3f},{pts[0][1]:.3f}"
+        # 2dp (~1km) — coarse enough that ABC's per-render coordinate jitter
+        # doesn't change the key, fine enough that two genuinely distinct
+        # fires (separate roads, >1km apart) still differ.
+        lon, lat = pts[0]
+        return f"{lon:.2f},{lat:.2f}"
     lons = [p[0] for p in pts]
     lats = [p[1] for p in pts]
     return f"{min(lons):.2f},{min(lats):.2f},{max(lons):.2f},{max(lats):.2f}"
