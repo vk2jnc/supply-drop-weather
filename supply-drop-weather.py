@@ -117,10 +117,14 @@ def passes_filter(item: dict) -> bool:
     return True
 
 def dedup_key(item: dict) -> str:
+    # Stable across ABC re-renders. Deliberately excludes item["updated"] —
+    # ABC refreshes that timestamp whenever it re-renders the feed, which
+    # made the old key (with |updated) change every poll and re-post the
+    # whole feed every 5 min. A genuinely re-issued warning keeps the same
+    # id + title, so it stays deduped (that's what we want).
     src = item.get("source", "")[:20]
     ident = item.get("id") or item.get("title")
-    upd = item.get("updated") or item.get("expires") or ""
-    return f"{src}|{ident}|{upd}"
+    return f"{src}|{ident}"
 
 def render(item: dict) -> str:
     lvl = (item.get("level_text") or item.get("level") or "").strip()
